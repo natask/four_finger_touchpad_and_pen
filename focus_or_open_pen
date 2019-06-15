@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+import subprocess
+out = subprocess.getoutput("wmctrl -l | grep 'Stylus Labs Write'")
+if out:
+  subprocess.Popen("wmctrl -a 'Stylus Labs Write'",shell=True)
+else:
+  subprocess.Popen("pen")

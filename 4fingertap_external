@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+import subprocess
+# Note your must "sudo gpasswd -a $USER input" then log out/in for
+# permission to access the device.
+#devstr = ' --device {}'.format(device.get('kernel')) if device else ''
+#command = 'stdbuf -oL -- {}{}'.format(cmd_debug_events, devstr)
+#cmd = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+device = "Logitech Rechargeable Touchpad T650"
+result =  subprocess.getoutput(f"cat /proc/bus/input/devices | grep -iA 5 '{device}' | grep event").split()
+filter_result = list(filter(lambda x: x.find("event") != -1,result))
+device_event_index = filter_result[0].find("event")
+device_event_name = filter_result[0][device_event_index:]
+cmd = subprocess.Popen(["stdbuf", "-oL", "--", "evtest",f"/dev/input/{device_event_name}"], stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+# Sit in a loop forever reading the libinput messages ..
+handler = None
+count = 0
+for line in cmd.stdout:
+  # to gauge if it is a tap not a swipe. also outputs change in y
+  # will change to radius based in the future
+  if "(ABS_MT_POSITION_X)," in line:
+    count += 1
+
+  # don't waste time on no 4finger taps
+  if "(BTN_TOOL_QUADTAP)," not in line:
+    continue
+  val = line.rstrip()[-1]
+  if val == "1":
+    count = 0
+  else: # val == 0
+    if count < 8:
+      subprocess.Popen(["xdotool","key","super+w"])
+  #print(line) #can optimize here by scanning from the right until first legit char and bit hacks for the loop
+  #print(count)

@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+import subprocess
+
+# Note your must "sudo gpasswd -a $USER input" then log out/in for
+# permission to access the device.
+#devstr = ' --device {}'.format(device.get('kernel')) if device else ''
+#command = 'stdbuf -oL -- {}{}'.format(cmd_debug_events, devstr)
+#cmd = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+
+
+    # Event code 320 (BTN_TOOL_PEN) # when pen gets in range
+    # Event code 321 (BTN_TOOL_RUBBER) # when eraser button is pressed
+    # Event code 330 (BTN_TOUCH) # when pen touches the screen
+    # Event code 331 (BTN_STYLUS) # when other/mouse button is pressed
+def main():
+    device = "pen"
+    result =  subprocess.getoutput(f"cat /proc/bus/input/devices | grep -iA 5 {device} | grep event").split()
+    filter_result = list(filter(lambda x: x.find("event") != -1,result))
+    device_event_index = filter_result[0].find("event")
+    device_event_name = filter_result[0][device_event_index:]
+    cmd = subprocess.Popen(["stdbuf", "-oL", "--", "evtest",f"/dev/input/{device_event_name}"], stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+    # Sit in a loop forever reading the libinput messages ..
+    handler = None
+    count = 0
+    # stylus_button_not_pressed = True
+    can_touch_look = False
+    for line in cmd.stdout:
+      # to gauge if it is a tap not a swipe. also outputs change in y
+      # will change to radius based in the future
+      if "(BTN_TOOL_RUBBER)," in line:
+        val = line.rstrip()[-1]
+        window_name = subprocess.getoutput("xdotool getwindowfocus getwindowname").lower()
+        xournal = "xournal" in window_name; #"Xournal"
+        stylus_labs = "stylus labs write" in window_name;#"Stylus Labs Write"
+        if stylus_labs:
+            if val == "1":
+              subprocess.call(["xdotool","key","shift"])
+        if xournal:
+            if val == "1":
+              subprocess.call(["xdotool","key","shift+ctrl+e"])
+            if val == "0":
+              subprocess.call(["xdotool", "key", "shift+ctrl+p"])
+      #
+      if "(BTN_STYLUS)," in line:
+        val = line.rstrip()[-1]
+        window_name = subprocess.getoutput("xdotool getwindowfocus getwindowname").lower()
+        xournalpp = "xournal++" in window_name; #"Xournal"
+        if xournalpp:
+            if val == "1":
+              #stylus_button_not_pressed = False
+              subprocess.call(["xdotool","key","shift+ctrl+g"])
+              #stylus_button_not_pressed = True
+              can_touch_look = True
+            #
+            # if val == "0":
+            #   #subprocess.call(["xdotool","key","shift+ctrl+p"])
+            #   #stylus_button_not_pressed = True
+            #   can_touch_look = True
+      if "(BTN_TOUCH)," in line and can_touch_look:
+        val = line.rstrip()[-1]
+        window_name = subprocess.getoutput("xdotool getwindowfocus getwindowname").lower()
+        xournalpp = "xournal++" in window_name; #"Xournal"
+        if xournalpp:
+            if val == "1": # zero is better; can probably be 0 or not even check and still work
+              subprocess.call(["xdotool","key","shift+ctrl+p"])
+              can_touch_look = False
+      #print(line) #can optimize here by scanning from the right until first legit char and bit hacks for the loop
+      #print(count)
+
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1:
+        main()
+    else:
+        subprocess.Popen(["daemonize", sys.argv[0], "execute"])

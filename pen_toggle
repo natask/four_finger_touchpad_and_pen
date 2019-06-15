@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+import subprocess
+pen_master_name="pen"
+pen_name="ipts 1B96:005E Pen Pen (0)"
+main_master_name="Virtual core"
+touch_name="ipts 1B96:005E Touchscreen"
+#bluetooth_buttons_name="Surface Pen"
+
+
+main_master_id=subprocess.getoutput(f"xinput list --id-only '{main_master_name} pointer'")
+pen_id=subprocess.getoutput(f"xinput list --id-only '{touch_name}'")
+touch_id=subprocess.getoutput(f"xinput list --id-only '{pen_name}'")
+#bluetooth_buttons_id=subprocess.getoutput(f"xinput list --id-only '{bluetooth_buttons_name}'")
+status,pen_master_id=subprocess.getstatusoutput(f"xinput list --id-only '{pen_master_name} pointer'")
+
+#assume pen_id, touch_id and main_master_id as valid
+if not status:
+  subprocess.Popen(f"xinput remove-master {pen_master_id}",shell=True)
+  subprocess.Popen(f"xinput reattach {pen_id} {main_master_id}",shell=True)
+  subprocess.Popen(f"xinput reattach {touch_id} {main_master_id}",shell=True)
+  #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {main_master_id}",shell=True)
+else:
+  subprocess.call(f"xinput create-master '{pen_master_name}'",shell=True) 
+  pen_master_id=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} pointer'")
+  subprocess.Popen(f"xinput reattach {pen_id} {pen_master_id}",shell=True)
+  subprocess.Popen(f"xinput reattach {touch_id} {pen_master_id}",shell=True)
+  #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {pen_master_id}",shell=True)		

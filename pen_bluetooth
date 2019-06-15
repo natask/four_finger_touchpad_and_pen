@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+import subprocess
+import re
+# Note your must "sudo gpasswd -a $USER input" then log out/in for
+# permission to access the device.
+#devstr = ' --device {}'.format(device.get('kernel')) if device else ''
+#command = 'stdbuf -oL -- {}{}'.format(cmd_debug_events, devstr)
+#cmd = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+checkregex=r"> 02 8[01] 20 0F 00 0B 00 04 00 1B 1[D9] 00 08 00 6[FED] 00 00 00 00 00"
+clickregex=r"> 02 8[01] 20 0F 00 0B 00 04 00 1B 1[D9] 00 08 00 6F 00 00 00 00 00"
+doubleclickregex=r"> 02 8[01] 20 0F 00 0B 00 04 00 1B 1[D9] 00 08 00 6E 00 00 00 00 00"
+holdregex=r"> 02 8[01] 20 0F 00 0B 00 04 00 1B 1[D9] 00 08 00 6D 00 00 00 00 00"
+
+# need to give user permissions to see hicdump output. this is in all_things_done
+# ## bluetooth get hcidump access without being root
+# thiese can be done by adding capabilities
+# https://unix.stackexchange.com/questions/96106/bluetooth-le-scan-as-non-root
+#
+#
+# ```
+# The Bluetooth protocol stack for Linux checks two capabilities. Capabilities are a not yet common system to manage some privileges. They could be handled by a PAM module or via extended file attributes. (see http://lxr.free-electrons.com/source/net/bluetooth/hci_sock.c#L619)
+#
+#  $> sudo apt-get install libcap2-bin
+#
+# installs linux capabilities manipulation tools.
+#
+#  $> sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcitool`
+#
+#  $> getcap !$
+#  getcap `which hcitool`
+#  /usr/bin/hcitool = cap_net_admin,cap_net_raw+eip
+# ```
+cmd = subprocess.Popen(["stdbuf", "-oL", "--", "hcidump","-R"], stdout=subprocess.PIPE, bufsize=1, universal_newlines=True)
+
+
+
+def multi_mouse():
+        pen_master_name="pen"
+        pen_name="ipts 1B96:005E Pen Pen (0)"
+        main_master_name="Virtual core"
+        touch_name="ipts 1B96:005E Touchscreen"
+        #bluetooth_buttons_name="Surface Pen"
+
+        main_master_id=subprocess.getoutput(f"xinput list --id-only '{main_master_name} pointer'")
+        pen_id=subprocess.getoutput(f"xinput list --id-only '{touch_name}'")
+        touch_id=subprocess.getoutput(f"xinput list --id-only '{pen_name}'")
+        #bluetooth_buttons_id=subprocess.getoutput(f"xinput list --id-only '{bluetooth_buttons_name}'")
+        status,pen_master_id=subprocess.getstatusoutput(f"xinput list --id-only '{pen_master_name} pointer'")
+
+        #assume pen_id, touch_id and main_master_id as valid
+        if not status:
+            subprocess.Popen(f"xinput remove-master {pen_master_id}",shell=True)
+            subprocess.Popen(f"xinput reattach {pen_id} {main_master_id}",shell=True)
+            subprocess.Popen(f"xinput reattach {touch_id} {main_master_id}",shell=True)
+            #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {main_master_id}",shell=True)
+        else:
+            subprocess.call(f"xinput create-master '{pen_master_name}'",shell=True)
+            pen_master_id=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} pointer'")
+            subprocess.Popen(f"xinput reattach {pen_id} {pen_master_id}",shell=True)
+            subprocess.Popen(f"xinput reattach {touch_id} {pen_master_id}",shell=True)
+            #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {pen_master_id}",shell=True)
+
+
+old = ""
+previous = ""
+## fixed so that it works on the granuality of window id
+def  create_or_switch_application(grep_name, application_name):
+        global old # to modiefiy global vairable old
+        global previous
+        current = subprocess.getoutput(f"xdotool getwindowfocus getwindowname | grep {grep_name}")#make this more of window id
+        if current:
+            previous = subprocess.getoutput("printf 0x0%x `xdotool getwindowfocus`")
+            if previous != old:
+                if old:
+                    subprocess.Popen(f"wmctrl -ia {old}",shell=True) # works on the graunuality of window id, -a and -i cant be put like -ai for this command,wmctrl need  -i -a or -ia
+        else:
+            out = subprocess.getoutput(f"wmctrl -lp | grep {grep_name}")
+            if out:
+                old = subprocess.getoutput("printf 0x0%x `xdotool getwindowfocus`")
+                if previous:
+                    subprocess.Popen(f"wmctrl -ia {previous}",shell=True)
+                else:
+                    previous = out.split()[0]
+                    subprocess.Popen(f"wmctrl -a {grep_name}",shell=True)
+            else:
+                subprocess.Popen(application_name)
+
+
+def main():
+    # previousSingleClick = False
+    # previousDoubleClick = False
+    # st
+
+    # Sit in a loop forever reading the libinput messages ..
+    for line in cmd.stdout:
+        checkMatchObj = re.match(checkregex, line)
+        singleClickMatchObj = re.match(clickregex, line)
+        doubleClickMatchObj = re.match(doubleclickregex, line)
+        holdMatchObj = re.match(holdregex, line)
+
+        # don't execute later stages of loop if checkMatch isn't in line
+        if not checkMatchObj:
+            continue
+
+        # thripleClick = singleClick and doubleClickMatchObj;
+        # quadClick = doubleClick and doubleClickMatchObj;
+        #
+        # singleClick = bool(singleClickMatchObj);
+        # doubleClick = bool(doubleClickMatchObj);
+
+        if holdMatchObj:
+            subprocess.Popen("okular")
+
+        if doubleClickMatchObj:
+            #doubleClick = True
+            multi_mouse()
+
+        if singleClickMatchObj:
+            #singleClick = True
+            create_or_switch_application("Xournal++", "xournalpp")
+        #
+        # if thripleClick:1
+        #     create_or_switch_application("Stylus Labs Write", "pen")
+        #
+        # if quadClick:
+
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1:
+        main()
+    else:
+        subprocess.Popen(["daemonize", sys.argv[0], "execute"])

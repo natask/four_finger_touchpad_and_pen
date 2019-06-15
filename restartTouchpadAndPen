@@ -1,0 +1,18 @@
+#!/bin/bash
+if [[ -n "$1" ]]; then
+  libinput-gestures-setup restart;
+  pkill -f "python3.*4fingertap*";
+  4fingertap & disown;
+  4fingertap_external & disown;
+  pkill -f "python3.*pen_eraser";
+  pen_eraser & disown;
+  pkill -f "python3.*pen_bluetooth";
+  pen_bluetooth & disown;
+  pkill -f "sticky_keys";
+  sticky_keys;
+  kt;
+  #pkill pend;
+  #pend; //using gnome keyboard shortcut module with XmodMap
+else
+  daemonize "$0" execute
+fi
