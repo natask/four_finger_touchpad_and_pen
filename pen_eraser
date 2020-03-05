@@ -14,7 +14,10 @@ import subprocess
     # Event code 331 (BTN_STYLUS) # when other/mouse button is pressed
 def main():
     device = "pen"
+    arch_device = '"ipts 1B96:005E"'
     result =  subprocess.getoutput(f"cat /proc/bus/input/devices | grep -iA 5 {device} | grep event").split()
+    result = result if result != [] else subprocess.getoutput(f"cat /proc/bus/input/devices | grep -iA 5 '{arch_device}'  | grep event").split()
+
     filter_result = list(filter(lambda x: x.find("event") != -1,result))
     device_event_index = filter_result[0].find("event")
     device_event_name = filter_result[0][device_event_index:]
@@ -32,14 +35,29 @@ def main():
         window_name = subprocess.getoutput("xdotool getwindowfocus getwindowname").lower()
         xournal = "xournal" in window_name; #"Xournal"
         stylus_labs = "stylus labs write" in window_name;#"Stylus Labs Write"
+        print(window_name);
+        print(val);
+        print(stylus_labs);
         if stylus_labs:
             if val == "1":
-              subprocess.call(["xdotool","key","shift"])
+              
+              #subprocess.call(["xdotool","key","shift"])
+              subprocess.call(["evemu_do","shift"]) #use for a latching eraser
+              #subprocess.call(["xdotool","key","shift+ctrl+e"])
+              #subprocess.call(["evemu_do","shift","down"])
+            #if val == "0":
+              #subprocess.call(["xdotool", "key", "shift+ctrl+p"])
+              #subprocess.call(["evemu_do","shift", "up"]);
+              #subprocess.call("xkbset -sticky".split());
+              #subprocess.call("xkbset sticky".split());
+
         if xournal:
             if val == "1":
-              subprocess.call(["xdotool","key","shift+ctrl+e"])
+              #subprocess.call(["xdotool","key","shift+ctrl+e"])
+              subprocess.call(["evemu_do","shift+ctrl+e"])
             if val == "0":
-              subprocess.call(["xdotool", "key", "shift+ctrl+p"])
+              #subprocess.call(["xdotool", "key", "shift+ctrl+p"])
+              subprocess.call(["evemu_do","shift+ctrl+p"])
       #
       if "(BTN_STYLUS)," in line:
         val = line.rstrip()[-1]
@@ -48,7 +66,8 @@ def main():
         if xournalpp:
             if val == "1":
               #stylus_button_not_pressed = False
-              subprocess.call(["xdotool","key","shift+ctrl+g"])
+              #subprocess.call(["xdotool","key","shift+ctrl+g"])
+              subprocess.call(["evemu_do","shift+ctrl+g"])
               #stylus_button_not_pressed = True
               can_touch_look = True
             #
@@ -62,7 +81,8 @@ def main():
         xournalpp = "xournal++" in window_name; #"Xournal"
         if xournalpp:
             if val == "1": # zero is better; can probably be 0 or not even check and still work
-              subprocess.call(["xdotool","key","shift+ctrl+p"])
+              #subprocess.call(["xdotool","key","shift+ctrl+p"])
+              subprocess.call(["evemu_do","shift+ctrl+p"])
               can_touch_look = False
       #print(line) #can optimize here by scanning from the right until first legit char and bit hacks for the loop
       #print(count)

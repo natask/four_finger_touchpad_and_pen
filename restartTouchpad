@@ -1,9 +1,8 @@
 #!/bin/bash
-if [[ -n "$1" ]]; then
-    libinput-gestures-setup restart;
-    pkill -f "python3.*4fingertap*";
-    4fingertap & disown;
-    4fingertap_external & disown;
+if [[ -n "$1" ]]; then #if $1 not empty
+    pkill -f "evtest";
+    pkill -f "python.*gesture.*";
+    gestures & disown;
     #pkill pend;
     #pend; //using gnome keyboard shortcut module with XmodMap
 else

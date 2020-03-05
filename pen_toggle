@@ -1,27 +1,59 @@
 #!/usr/bin/env python3
-import subprocess
-pen_master_name="pen"
-pen_name="ipts 1B96:005E Pen Pen (0)"
+import subprocess, shlex
+# I don't know why I commented out bluetooth_buttons but there must have been a reason a good reason
+pen_master_name = "pen" #"Pen core"
 main_master_name="Virtual core"
-touch_name="ipts 1B96:005E Touchscreen"
 #bluetooth_buttons_name="Surface Pen"
 
+#modify -vE <-> -E to select between making pen primary or secondary mouse pointer
+target = subprocess.getoutput(f"xinput | grep -E 'ipts|{pen_master_name}' | grep pointer").split() #not grabbing the ipts keyboard, don't really know what it does really
+#target = subprocess.getoutput(f"xinput | grep -vE 'ipts|{main_master_name}|{pen_master_name}' | grep pointer").split() #not grabbing the ipts keyboard, don't really know what it does really
+
+#target = subprocess.getoutput(f"xinput | grep -vE '{main_master_name}|{pen_master_name}' | grep pointer").split() #not grabbing the ipts keyboard, don't really know what it does really
+filtered_target = filter(lambda x: "id" == x[:2], target)
+ids = list(map(lambda x: x.split("=")[1], filtered_target))
+
+target = subprocess.getoutput(f"xinput | grep -vE '{main_master_name}|{pen_master_name}' | grep keyboard").split() #not grabbing the ipts keyboard, don't really know what it does really
+filtered_target = filter(lambda x: "id" == x[:2], target)
+ids_keyboard = list(map(lambda x: x.split("=")[1], filtered_target))
 
 main_master_id=subprocess.getoutput(f"xinput list --id-only '{main_master_name} pointer'")
-pen_id=subprocess.getoutput(f"xinput list --id-only '{touch_name}'")
-touch_id=subprocess.getoutput(f"xinput list --id-only '{pen_name}'")
 #bluetooth_buttons_id=subprocess.getoutput(f"xinput list --id-only '{bluetooth_buttons_name}'")
 status,pen_master_id=subprocess.getstatusoutput(f"xinput list --id-only '{pen_master_name} pointer'")
 
+pen_master_id_keyboard=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} keyboard'")
+main_master_id_keyboard=subprocess.getoutput(f"xinput list --id-only '{main_master_name} keyboard'")
+
+
+# check if there are more ids under main_master vs pen_master in a hacky way
+target = subprocess.getoutput(f"xinput | sed -e '1,/{pen_master_name} keyboard/d'").split()
+filtered_target = filter(lambda x: "id" == x[:2], target)
+pens = list(map(lambda x: x.split("=")[1], filtered_target))
+
+if status:
+  subprocess.call(shlex.split(f'xinput create-master "{pen_master_name}"')) 
+  pen_master_id=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} pointer'")
+  for input_id in ids:
+    subprocess.Popen(f"xinput reattach {input_id} {pen_master_id}".split()) 
+
+if not status:
+  status = False if len(ids_keyboard) == len(pens)  else True;
+
+
 #assume pen_id, touch_id and main_master_id as valid
 if not status:
-  subprocess.Popen(f"xinput remove-master {pen_master_id}",shell=True)
-  subprocess.Popen(f"xinput reattach {pen_id} {main_master_id}",shell=True)
-  subprocess.Popen(f"xinput reattach {touch_id} {main_master_id}",shell=True)
-  #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {main_master_id}",shell=True)
+  #subprocess.Popen(f"xinput remove-master {pen_master_id}",shell=True)
+#  for input_id in ids:
+#    subprocess.Popen(f"xinput reattach {input_id} {main_master_id}", shell=True)
+#    #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {main_master_id}",shell=True)
+  for input_id in ids_keyboard:
+    subprocess.Popen(f"xinput reattach {input_id} {main_master_id_keyboard}", shell=True)
+
 else:
-  subprocess.call(f"xinput create-master '{pen_master_name}'",shell=True) 
   pen_master_id=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} pointer'")
-  subprocess.Popen(f"xinput reattach {pen_id} {pen_master_id}",shell=True)
-  subprocess.Popen(f"xinput reattach {touch_id} {pen_master_id}",shell=True)
-  #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {pen_master_id}",shell=True)		
+  pen_master_id_keyboard=subprocess.getoutput(f"xinput list --id-only '{pen_master_name} keyboard'")
+#  for input_id in ids:
+#    subprocess.Popen(f"xinput reattach {input_id} {pen_master_id}".split()) 
+#    #subprocess.Popen(f"xinput reattach {bluetooth_buttons_id} {pen_master_id}".split())		
+  for input_id in ids_keyboard:
+    subprocess.Popen(f"xinput reattach {input_id} {pen_master_id_keyboard}".split())
